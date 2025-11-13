@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Caja de Preguntas</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  :root{
+    --color-principal:#4a90e2;
+    --color-secundario:#f4f6f8;
+    --color-fondo:#ffffff;
+    --color-texto:#333;
+    --color-boton:#e0e7ff;
+    --color-boton-hover:#c7d2fe;
+    --color-correcto:#22c55e;
+    --color-incorrecto:#ef4444;
+  }
+  *{box-sizing:border-box}
+  body{
+    font-family:"Segoe UI",Arial,sans-serif;
+    margin:0;
+    background-color:var(--color-secundario);
+    color:var(--color-texto);
+    height:100vh;
+  }
+  .container{display:flex;height:100vh;overflow:hidden}
+  .sidebar{
+    width:260px;background:var(--color-fondo);border-right:1px solid #ddd;
+    padding:18px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;
+  }
+  .sidebar h3{margin:0 0 6px 0;color:var(--color-principal);font-size:15px}
+  .count{background:#eaeaea;padding:8px;text-align:center;border-radius:6px;font-weight:700}
+  .sidebar button{
+    padding:10px;border:none;border-radius:8px;background:var(--color-boton);
+    cursor:pointer;font-size:14px;
+  }
+  .sidebar button:hover{background:var(--color-boton-hover)}
+  .main{
+    flex:1;padding:22px;display:flex;flex-direction:column;gap:14px;overflow:auto;align-items:center;
+  }
+  .main h1{color:var(--color-principal);margin:0}
+  .alumno-activo{
+    margin-top:6px;font-size:20px;font-weight:700;color:var(--color-principal);
+    background:#eaf2ff;padding:10px 16px;border-radius:8px;width:100%;max-width:820px;text-align:left;
+  }
+  .display-box{
+    width:100%;max-width:820px;min-height:120px;background:#f1f5f9;border-radius:12px;padding:20px;
+    font-size:17px;display:flex;align-items:center;justify-content:center;text-align:center;
+  }
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  .controls button{padding:10px 16px;border-radius:8px;border:none;background:var(--color-boton);cursor:pointer}
+  .controls button:hover{background:var(--color-boton-hover)}
+  .controls .correcta{background:var(--color-correcto);color:#fff}
+  .controls .incorrecta{background:var(--color-incorrecto);color:#fff}
+  .panel{
+    width:100%;max-width:820px;background:var(--color-fondo);border-radius:10px;padding:12px 14px;
+    box-shadow:0 0 6px rgba(0,0,0,0.06);
+  }
+  .panel h3{margin:0 0 8px 0;color:var(--color-principal);font-size:15px;border-bottom:1px solid #eee;padding-bottom:8px}
+  ul{list-style:none;padding:0;margin:0}
+  li{padding:8px 6px;border-bottom:1px solid #fafafa;display:flex;justify-content:space-between;align-items:center}
+  .score-item{display:flex;justify-content:space-between;gap:8px}
+  .correct{color:var(--color-correcto);font-weight:700}
+  .incorrect{color:var(--color-incorrecto);font-weight:700}
+  .small-btn{padding:6px 8px;border-radius:6px;border:none;background:#f1f5f9;cursor:pointer;margin-left:6px}
+  .small-btn:hover{background:#e6eefc}
+  #panel-editor{display:grid;grid-template-columns:1fr;gap:12px}
+  .flex-row{display:flex;gap:8px;align-items:center}
+  .muted{color:#666;font-size:13px}
+  .list-scroll{max-height:220px;overflow:auto;border-radius:6px;border:1px solid #f0f0f0;padding:6px;background:#fff}
+  .sidebar .muted{font-size:12px;color:#666}
+  .bottom-note{font-size:13px;color:#666;margin-top:8px}
+  /* responsive */
+  @media (max-width:920px){
+    .container{flex-direction:column}
+    .sidebar{width:100%;order:2;display:flex;flex-direction:row;flex-wrap:wrap;gap:6px}
+    .main{order:1;padding:12px}
+    .display-box{max-width:100%}
+    .panel{max-width:100%}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <h3>🎓 Alumnos</h3>
+    <div class="count" id="alumnosCount">0</div>
+    <button onclick="ingresarAlumnos()">➕ Agregar alumnos</button>
+    <button onclick="mostrarListaAlumnos()">👥 Ver/Editar alumnos</button>
+
+    <h3>💡 Preguntas</h3>
+    <div class="count" id="preguntasCount">0</div>
+    <button onclick="ingresarPreguntas()">➕ Agregar preguntas</button>
+    <button onclick="mostrarEditorPreguntas()">✏️ Editar preguntas</button>
+
+    <h3>⚙️ Configuración</h3>
+    <div class="flex-row">
+      <button onclick="cambiarCantidad()">Cambiar cantidad de preguntas</button>
+    </div>
+    <div class="muted">Límite actual: <span id="limiteInfo">5</span> preguntas</div>
+
+    <div class="bottom-note">Las preguntas se guardan automáticamente (localStorage). Los alumnos no se guardan.</div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <h1>🧠 Caja de Preguntas</h1>
+
+    <div id="alumno" class="alumno-activo">Ningún alumno seleccionado</div>
+
+    <div class="display-box" id="preguntaDisplay">Presiona "Iniciar" para comenzar</div>
+
+    <div class="controls">
+      <button onclick="iniciar()">🎲 Iniciar</button>
+      <button class="correcta" onclick="responder(true)">✅ Correcta</button>
+      <button class="incorrecta" onclick="responder(false)">❌ Incorrecta</button>
+    </div>
+
+    <!-- Puntajes -->
+    <div class="panel" id="panel-puntajes">
+      <h3>🏆 Puntajes</h3>
+      <ul id="puntajes"></ul>
+    </div>
+
+    <!-- Historial (debajo de puntajes) -->
+    <div class="panel" id="panel-historial">
+      <h3>📜 Historial</h3>
+      <ul id="historial"></ul>
+    </div>
+
+    <!-- Editor preguntas / alumnos (oculto por defecto, se muestran con botones) -->
+    <div class="panel" id="panel-editor" style="display:none">
+      <!-- este panel se usa dinámicamente -->
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================== Datos iniciales y persistencia ===================== */
+const STORAGE_KEY = "caja_preguntas_preguntas_v1";
+const PREGUNTAS_PRELOAD = [
+"¿Cuál es la diferencia entre una función algebraica y una función trascendente? De un ejemplo de cada una.",
+"Defina dominio y recorrido. ¿Cómo se determina el dominio de la función?",
+"¿Qué característica deben cumplirse para que una función sea biyectiva y sobreyectiva?",
+"Definir el concepto de función inversa y describa el procedimiento para determinar una función inversa.",
+"¿Qué debe cumplirse para poder realizar una composición de funciones?",
+"¿Qué es un modelo matemático? Ese modelo matemático lo puedo considerar como una función.",
+"¿Cuál es el dominio y recorrido de la siguiente función f(x) = -x^2/(x^2+3)?",
+"¿Cuál es el dominio y recorrido de la siguiente función f(x) = x^2 - 4? Graficar.",
+"¿Cuál es el dominio y recorrido de la siguiente función f(x) = x - 1? Graficar.",
+"Dada la gráfica f(x)=x, ¿qué transformaciones vistas en la teoría permiten trazar f(x) = -x?",
+"¿Qué se debe cumplir para que una función tenga inversa?",
+"¿Cuál es la amplitud, periodo y desplazamiento de fase de la función f(x) = 2 cos(x+1)?",
+"¿Qué significa amplitud, periodo, desplazamiento de fase?",
+"Si el punto (2, 3) está sobre la gráfica de una función par, ¿qué otro punto también debe estar sobre la gráfica?",
+"Si el punto (2, 3) está sobre la gráfica de una función impar, ¿qué otro punto también debe estar sobre la gráfica?",
+"¿Cuál es la función resultante y su dominio de la multiplicación de las funciones dadas f(x) = (x+1)/(x-1) y g(x) = 1/x ?",
+"Dada la siguiente función f(x) = x^2 + 1, determine la función inversa, justifique su respuesta.",
+"¿Qué tipo de entornos existen y cuáles son sus diferencias? ¿Cómo se expresan sus intervalos?",
+"Dada la curva x = y^2 - 2, ¿podemos decir que es una función?",
+"Determine si la siguiente función f(x) = x^5 + x es par, impar o ninguna de las anteriores; ¿cuál es su simetría?",
+"¿Cuál es el dominio y recorrido de la siguiente función f(x) = 4 - x^2? Graficar.",
+"Si f(x)=x y g(x)=2-x, encuentre el dominio y recorrido de cada una de las funciones y después determine (f ∘ g).",
+"¿Cuál es dominio y recorrido de la función f(x) = 12 e^{ -x } - 1 ?",
+"Encuentre la función inversa de f(x) = x^3 + 2, determine sus dominios y recorridos.",
+"¿Cómo puede decirse, a partir de la gráfica de una función, que es uno a uno?",
+"Si se da la gráfica para f, ¿cómo encuentro la gráfica de f^{-1}?",
+"Trace a mano el gráfico de cada una de las siguientes funciones: f(x)=sen x, f(x)=ln x, f(x)=e^x, f(x)=x y determine dominio y recorrido.",
+"Determine si la siguiente función f(x)=2x^5 - 3x^2 + 2 es par, impar o ninguna de las anteriores; ¿cuál es su simetría?",
+"¿Dónde se representa un intervalo y qué tipos de intervalos hay? ¿Todos los intervalos puedo escribirlos como entorno?",
+"Dado el siguiente ejercicio 2x - 3 ≥ 5, resuelva y encuentre el entorno.",
+"¿Cuál es el valor del límite (x-1)/(x^2-1)?",
+"¿En qué valor se debe calcular el límite para f(x) = 1/x^2 y existe el límite en ese valor?",
+"¿Cuál es diferencia entre límite infinito y límite al infinito?",
+"Dado los límites f(x)=3 y f(x)=7. ¿Existe el límite?",
+"Esboce una gráfica de una función donde los límites laterales son distintos.",
+"Calcular el siguiente límite (x+2)/(x+3).",
+"Aplique las propiedades de límites al siguiente límite: (2x^2 - 3x + 4).",
+"Dado el límite (2x^2 - 3x + 4) y justifique su respuesta.",
+"Pruebe que lim_{x→a} 4x - 5 = 4a - 5 por medio de la definición de límite. (adaptado)",
+"Pruebe que lim_{x→a} 2x - 5 = 2a - 5 por medio de la definición de límite. (adaptado)",
+"Mencione tres casos de indeterminación. Dé un ejemplo de cada uno.",
+"¿Qué se debe cumplir para que una función sea continua?",
+"¿Cuáles son los límites notables?",
+"¿Dónde es continua la función polinómica?",
+"Si f es continua sobre (-∞, ∞) ¿qué puede decir acerca de su gráfica?",
+"¿Puede la gráfica de y = f(x) intersecar a las asíntotas verticales y horizontales?",
+"Explique la regla de derivación de la suma, multiplicación y división.",
+"¿Cuál es la expresión de la linealización? ¿Qué significa aproximación lineal?",
+"¿Cuál es la diferencia entre incremento y diferencial?",
+"¿Toda función continua es derivable? (discutir)",
+"¿Qué significa derivada?",
+"¿Cuál es la diferencia entre recta secante y recta tangente?",
+"Si tengo f'(x) y f'(a) ¿qué significa que sean iguales? (interpretación)",
+"¿La función f(x)=x es derivable en x=0? (argumentar)",
+"¿Cuándo una función no es derivable?",
+"¿Cuál es la fórmula de la razón de cambio?",
+"Si la pendiente es cero o infinita ¿qué significa?",
+"Aplicaciones de la derivada: (preguntas generales sobre interpretación)",
+"Si un número c pertenece al dominio de la función, entonces f(c) puede ser... (interpretar)",
+"El número f(c) es un máximo o un mínimo, ¿qué debe pasar con las tangentes?",
+"Si f es continua en un intervalo cerrado [a, b], entonces f puede alcanzar (¿qué?)",
+"Si f tiene un máximo o un mínimo local en x=c y si f'(c) existe. ¿Qué pasa con la derivada?",
+"¿Cuáles son los números críticos de una función y cómo se encuentran?",
+"¿Cuál es la diferencia entre un mínimo absoluto y un mínimo local?",
+"Si f' (x) > 0 ¿qué pasa con la función en un intervalo?",
+"Si f' (x) < 0 ¿qué pasa con la función en un intervalo?",
+"Supongamos que x=c es número crítico de una función continua f. Indicar qué pasa con el cambio de las pendientes para analizar máximo y mínimo.",
+"¿Qué indica la segunda derivada de una función?",
+"¿Qué indica si la gráfica queda por arriba de todas las rectas tangentes en el intervalo I?",
+"¿Qué indica si la gráfica queda por abajo de todas las rectas tangentes en el intervalo I?",
+"Con la segunda derivada ¿qué punto encontramos? ¿Qué indica ese punto si existe?",
+"Esboce una posible gráfica de una función f que cumpla la siguiente condición: f'(x) > 0 sobre (-∞, 1) y f'(x) < 0 sobre (1, ∞).",
+"Esboce una posible gráfica de una función f que cumpla la siguiente condición: f''(x) > 0 sobre (-∞, -2) y (2, ∞), f''(x) < 0 sobre (-2, 2).",
+"Prueba con la segunda derivada: Si f'(c)=0 y f''(c)>0 ¿qué indica?",
+"Prueba con la segunda derivada: Si f'(c)=0 y f''(c)<0 ¿qué indica?",
+"Con respecto a tu situación problemática: ¿Cuál es el punto máximo o mínimo, si es que existe?",
+"¿Cuál es el intervalo de crecimiento y de decrecimiento de la función de la situación problemática?",
+"¿Qué concavidad tiene la función de la situación problemática?",
+"¿Qué valores críticos existen y cómo se encuentran?",
+"¿Qué hipótesis debe satisfacer una función para poder aplicar el Teorema del Valor Medio del Cálculo Diferencial?",
+"¿Qué hipótesis debe satisfacer una función para poder aplicar el Teorema de Rolle?",
+"Si la función es discontinua en el intervalo [a, b], ¿se puede aplicar el Teorema del Valor Medio del Cálculo Diferencial?",
+"Si la función no es diferenciable en el intervalo (a, b), ¿se puede aplicar el Teorema del Valor Medio del Cálculo Diferencial?",
+"¿Dónde se utiliza la Regla de L’Hospital?",
+"Si tengo una indeterminación 0/0 ¿cómo se salva la indeterminación?",
+"Si tengo una indeterminación ∞/∞ ¿cómo se salva la indeterminación?",
+"¿Qué pasa si la función es una constante f(x)=c con el Teorema de Rolle?",
+"Dada la siguiente fórmula f'(c) = (f(b) - f(a)) / (b - a), ¿qué Teorema utiliza esta fórmula?",
+"La interpretación geométrica del Teorema del Valor Medio del Cálculo Diferencial.",
+"¿Cuáles son los métodos de integración que existen?",
+"¿Cuál es la interpretación geométrica de ∫_a^b f(x) dx si f(x) ≥ 0?",
+"Enuncie la regla de sustitución.",
+"Si f tiene una discontinuidad en x=0, entonces ∫_{-1}^{1} f(x) dx no existe. (interpretar)",
+"Si tengo la función f(x)=x^3 en el intervalo [-1, 1], ¿cuál es su área?",
+"Si tengo la función f(x)=x^2 en el intervalo [-1, 1], ¿cuál es su área?"
+];
+
+let preguntas = [];
+let alumnos = [];
+let respuestas = {};
+let alumnoActual = null;
+let preguntaActual = null;
+let contadorPreguntasAlumno = 0;
+let preguntasPorAlumnoConfigurable = 5;
+let alumnosUsados = []; // 👈 nuevo: guarda los que ya tuvieron turno en esta ronda
+
+function cargarPreguntas() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        preguntas = parsed.slice();
+        return;
+      }
+    }
+  } catch (e) { console.warn("Error leyendo preguntas desde localStorage:", e); }
+  preguntas = PREGUNTAS_PRELOAD.slice();
+  guardarPreguntas();
+}
+function guardarPreguntas() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(preguntas));
+    document.getElementById("preguntasCount").innerText = preguntas.length;
+  } catch (e) { console.warn("Error guardando preguntas:", e); }
+}
+cargarPreguntas();
+document.getElementById("preguntasCount").innerText = preguntas.length;
+document.getElementById("limiteInfo").innerText = preguntasPorAlumnoConfigurable;
+
+/* ===================== Gestión de alumnos ===================== */
+function ingresarAlumnos() {
+  let texto = prompt("Ingrese los nombres separados por coma o salto de línea:");
+  if (!texto) return;
+  let nuevos = texto.split(/[\n,]+/).map(a => a.trim()).filter(a => a);
+  for (let n of nuevos) {
+    if (!alumnos.includes(n)) {
+      alumnos.push(n);
+      respuestas[n] = { correctas: 0, incorrectas: 0, respondidas: [] };
+    }
+  }
+  document.getElementById("alumnosCount").innerText = alumnos.length;
+  actualizarPuntajes();
+}
+function mostrarListaAlumnos() {
+  const panel = document.getElementById("panel-editor");
+  panel.style.display = "block";
+  panel.innerHTML = `<h3>👥 Alumnos — Ver / Editar</h3>
+    <div class="list-scroll" id="alumnosList"></div>
+    <div style="margin-top:8px"><button onclick="ocultarEditor()">Cerrar</button></div>`;
+  renderAlumnosList();
+}
+function renderAlumnosList() {
+  const cont = document.getElementById("alumnosList");
+  cont.innerHTML = "";
+  if (alumnos.length === 0) {
+    cont.innerHTML = `<div class="muted">No hay alumnos. Agregá con "Agregar alumnos".</div>`;
+    return;
+  }
+  alumnos.forEach((a, i) => {
+    const row = document.createElement("div");
+    row.style.display = "flex";
+    row.style.justifyContent = "space-between";
+    row.style.alignItems = "center";
+    row.style.padding = "6px 4px";
+    const left = document.createElement("div");
+    left.innerHTML = `<strong>${a}</strong> <span class="muted">(${respuestas[a].respondidas.length} respondidas)</span>`;
+    const right = document.createElement("div");
+    right.innerHTML = `<button class="small-btn" onclick="editarAlumnoIndex(${i})">✏️</button>
+                       <button class="small-btn" onclick="eliminarAlumnoIndex(${i})">🗑</button>`;
+    row.appendChild(left); row.appendChild(right);
+    cont.appendChild(row);
+  });
+}
+function editarAlumnoIndex(i) {
+  const viejo = alumnos[i];
+  const nuevo = prompt("Nuevo nombre:", viejo);
+  if (!nuevo || !nuevo.trim()) return;
+  const name = nuevo.trim();
+  respuestas[name] = respuestas[viejo];
+  delete respuestas[viejo];
+  alumnos[i] = name;
+  document.getElementById("alumnosCount").innerText = alumnos.length;
+  renderAlumnosList();
+  actualizarPuntajes();
+}
+function eliminarAlumnoIndex(i) {
+  const conf = confirm(`¿Eliminar a ${alumnos[i]}?`);
+  if (!conf) return;
+  if (alumnos[i] === alumnoActual) {
+    alumnoActual = null; preguntaActual = null; contadorPreguntasAlumno = 0;
+    document.getElementById("alumno").innerText = "Ningún alumno seleccionado";
+    document.getElementById("preguntaDisplay").innerText = "Presiona 'Iniciar' para continuar";
+  }
+  delete respuestas[alumnos[i]];
+  alumnos.splice(i, 1);
+  alumnosUsados = alumnosUsados.filter(a => a !== alumnos[i]); // 👈 eliminar si estaba en la ronda
+  document.getElementById("alumnosCount").innerText = alumnos.length;
+  renderAlumnosList();
+  actualizarPuntajes();
+}
+
+/* ===================== Preguntas ===================== */
+/* (idénticas a las tuyas, no se tocan) */
+
+/* ===================== Configuración ===================== */
+function cambiarCantidad() {
+  let nuevoValor = prompt("¿Cada cuántas preguntas el alumno deja de participar?", preguntasPorAlumnoConfigurable);
+  if (!nuevoValor) return;
+  let num = parseInt(nuevoValor);
+  if (isNaN(num) || num <= 0) { alert("Ingrese un número válido mayor que cero."); return; }
+  preguntasPorAlumnoConfigurable = num;
+  document.getElementById("limiteInfo").innerText = preguntasPorAlumnoConfigurable;
+}
+
+/* ===================== Juego principal ===================== */
+function iniciar() {
+  if (alumnos.length === 0 || preguntas.length === 0) {
+    alert("Debe ingresar al menos un alumno y una pregunta");
+    return;
+  }
+
+  // 👇 Elegir nuevo alumno si no hay actual o terminó su bloque
+  if (!alumnoActual || contadorPreguntasAlumno >= preguntasPorAlumnoConfigurable) {
+    // Si todos ya jugaron esta ronda, reiniciar lista
+    if (alumnosUsados.length >= alumnos.length) {
+      alumnosUsados = [];
+    }
+
+    // Alumnos que aún no fueron elegidos en la ronda
+    const disponibles = alumnos.filter(a => !alumnosUsados.includes(a));
+
+    if (disponibles.length === 0) {
+      alert("🎉 Todos los alumnos completaron la ronda actual.");
+      return;
+    }
+
+    alumnoActual = disponibles[Math.floor(Math.random() * disponibles.length)];
+    alumnosUsados.push(alumnoActual);
+    contadorPreguntasAlumno = 0;
+  }
+
+  // Elegir pregunta no respondida por el alumno actual
+  const disponiblesPreg = preguntas.filter(p => !respuestas[alumnoActual].respondidas.includes(p));
+  if (disponiblesPreg.length === 0) {
+    alumnoActual = null;
+    iniciar();
+    return;
+  }
+
+  preguntaActual = disponiblesPreg[Math.floor(Math.random() * disponiblesPreg.length)];
+  document.getElementById("alumno").innerText = `🎓 ${alumnoActual}`;
+  document.getElementById("preguntaDisplay").innerText = preguntaActual;
+}
+
+function responder(correcta) {
+  if (!alumnoActual || !preguntaActual) { alert("Primero presione Iniciar"); return; }
+
+  respuestas[alumnoActual].respondidas.push(preguntaActual);
+  if (correcta) respuestas[alumnoActual].correctas++;
+  else respuestas[alumnoActual].incorrectas++;
+
+  agregarHistorial(alumnoActual, preguntaActual, correcta);
+  actualizarPuntajes();
+
+  contadorPreguntasAlumno++;
+
+  if (contadorPreguntasAlumno < preguntasPorAlumnoConfigurable) {
+    iniciar(); // sigue el mismo alumno
+  } else {
+    alert("✅ Turno finalizado, siguiente participante");
+    alumnoActual = null; preguntaActual = null; contadorPreguntasAlumno = 0;
+    document.getElementById("alumno").innerText = "Ningún alumno seleccionado";
+    document.getElementById("preguntaDisplay").innerText = "Presiona 'Iniciar' para continuar";
+  }
+}
+
+/* ===================== Historial y puntajes ===================== */
+function agregarHistorial(alumno, pregunta, correcta) {
+  let li = document.createElement("li");
+  li.innerHTML = `<b>${alumno}</b>: ${pregunta} → ${correcta ? "✅" : "❌"}`;
+  document.getElementById("historial").prepend(li);
+}
+function actualizarPuntajes() {
+  let ul = document.getElementById("puntajes");
+  ul.innerHTML = "";
+  for (let a of alumnos) {
+    let r = respuestas[a];
+    let li = document.createElement("li");
+    li.classList.add("score-item");
+    li.innerHTML = `<span>${a}</span>
+      <span>
+        <span class="correct">✔ ${r.correctas}</span> |
+        <span class="incorrect">✖ ${r.incorrectas}</span>
+      </span>`;
+    ul.appendChild(li);
+  }
+}
+</script>
+</body>
+</html>
